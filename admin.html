@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DormFix - ผู้ดูแลหอพัก</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,"Noto Sans Thai",sans-serif;background:#f3f6fb;color:#172033}
+header{background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;padding:25px 16px;text-align:center}
+header h1{margin:0 0 8px;font-size:27px}
+.container{max-width:1100px;margin:22px auto;padding:0 14px}
+.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 5px 20px #1e293b12}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{padding:16px;border-radius:14px;background:#f8fafc;text-align:center}
+.stat b{font-size:28px;display:block;margin-top:5px}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:bold}
+.wait{background:#fee2e2;color:#b91c1c}.doing{background:#fef3c7;color:#92400e}.done{background:#dcfce7;color:#166534}
+table{width:100%;border-collapse:collapse}th,td{padding:11px 8px;border-bottom:1px solid #e7ebf1;text-align:left;vertical-align:top}
+th{background:#f8fafc}.small{font-size:12px;color:#64748b}.empty{text-align:center;color:#718096;padding:25px}
+select,button{padding:9px;border-radius:9px;border:1px solid #ccd5e2;font-size:14px}
+.btn{border:0;background:#2563eb;color:#fff;font-weight:bold;cursor:pointer}.danger{background:#dc2626}
+.qr{text-align:center}.qr img{max-width:220px;width:100%;height:auto}
+a{color:#2563eb}
+@media(max-width:700px){.stats{grid-template-columns:1fr 1fr}table{display:block;overflow:auto;white-space:normal}}
+</style>
+</head>
+<body>
+<header>
+<h1>🧰 ผู้ดูแลหอพัก</h1>
+<p>ระบบจัดการรายการแจ้งซ่อม</p>
+</header>
+
+<div class="container">
+<div class="card qr">
+<h2>📱 QR Code สำหรับแจ้งซ่อม</h2>
+<p>สแกนเพื่อเปิดหน้าแจ้งซ่อม</p>
+<img id="qr" alt="QR Code">
+<p><a id="repairLink" href="./index.html">เปิดหน้าแจ้งซ่อม</a></p>
+</div>
+
+<div class="card">
+<h2>📊 Dashboard</h2>
+<div class="stats">
+<div class="stat">ทั้งหมด<b id="allCount">0</b></div>
+<div class="stat">รอรับเรื่อง<b id="waitCount">0</b></div>
+<div class="stat">กำลังซ่อม<b id="doingCount">0</b></div>
+<div class="stat">ซ่อมเสร็จ<b id="doneCount">0</b></div>
+</div>
+</div>
+
+<div class="card">
+<h2>🧰 รายการแจ้งซ่อม</h2>
+<div id="adminList"></div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = "dormfix_repairs";
+let repairs = [];
+
+function loadRepairs(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    repairs = raw ? JSON.parse(raw) : [];
+    if(!Array.isArray(repairs)) repairs = [];
+  } catch(e){ repairs=[]; }
+}
+
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(repairs)); render(); }
+
+function escapeHTML(value){
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[c]));
+}
+
+function badge(status){
+  const cls = status === "รอรับเรื่อง" ? "wait" :
+              status === "กำลังซ่อม" ? "doing" : "done";
+  return `<span class="badge ${cls}">${escapeHTML(status)}</span>`;
+}
+
+function render(){
+  document.getElementById("allCount").textContent = repairs.length;
+  document.getElementById("waitCount").textContent = repairs.filter(x=>x.status==="รอรับเรื่อง").length;
+  document.getElementById("doingCount").textContent = repairs.filter(x=>x.status==="กำลังซ่อม").length;
+  document.getElementById("doneCount").textContent = repairs.filter(x=>x.status==="ซ่อมเสร็จ").length;
+
+  const box = document.getElementById("adminList");
+  if(!repairs.length){
+    box.innerHTML = '<div class="empty">ยังไม่มีรายการแจ้งซ่อม</div>';
+    return;
+  }
+
+  box.innerHTML = `<table>
+  <thead><tr><th>หอ/โซน/ห้อง</th><th>ปัญหา</th><th>รายละเอียด</th><th>ผู้แจ้ง/เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+  <tbody>${repairs.map(x=>`<tr>
+    <td><b>${escapeHTML(x.dorm)}</b><br>โซน ${escapeHTML(x.zone)}<br>ห้อง ${escapeHTML(x.room)}</td>
+    <td>${escapeHTML(x.type)}</td>
+    <td>${escapeHTML(x.detail)}${x.photo?`<br><img src="${x.photo}" style="margin-top:7px;max-width:160px;max-height:110px;border-radius:8px" alt="รูปปัญหา">`:""}</td>
+    <td>${escapeHTML(x.name)}<br><span class="small">${escapeHTML(x.date)}</span></td>
+    <td>${badge(x.status)}</td>
+    <td>
+      <select onchange="changeStatus(${Number(x.id)},this.value)">
+        <option ${x.status==="รอรับเรื่อง"?"selected":""}>รอรับเรื่อง</option>
+        <option ${x.status==="กำลังซ่อม"?"selected":""}>กำลังซ่อม</option>
+        <option ${x.status==="ซ่อมเสร็จ"?"selected":""}>ซ่อมเสร็จ</option>
+      </select>
+      <br><button class="btn danger" style="margin-top:6px" onclick="removeItem(${Number(x.id)})">ลบ</button>
+    </td>
+  </tr>`).join("")}</tbody></table>`;
+}
+
+function changeStatus(id,status){
+  const item = repairs.find(x=>x.id===id);
+  if(item){ item.status=status; save(); }
+}
+
+function removeItem(id){
+  if(confirm("ต้องการลบรายการนี้หรือไม่?")){
+    repairs = repairs.filter(x=>x.id!==id);
+    save();
+  }
+}
+
+const repairUrl = new URL("./index.html", window.location.href).href;
+document.getElementById("repairLink").href = repairUrl;
+document.getElementById("qr").src =
+  "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(repairUrl);
+
+loadRepairs();
+render();
+</script>
+</body>
+</html>
