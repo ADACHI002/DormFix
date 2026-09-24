@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DormFix - แจ้งซ่อมหอพัก</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6fb;font-family:system-ui,sans-serif;color:#111}
+.card{max-width:780px;margin:25px auto;background:#fff;border-radius:24px;padding:25px;box-shadow:0 5px 25px #0001}
+h1{font-size:30px}label{font-weight:700;display:block;margin-top:14px}
+input,select,textarea{width:100%;padding:14px;margin-top:7px;border:1px solid #ccc;border-radius:12px;font-size:17px}
+textarea{min-height:130px}button{background:#1976d2;color:#fff;border:0;border-radius:12px;padding:14px 22px;font-size:17px;margin-top:18px}
+.item{border:1px solid #ddd;border-radius:16px;padding:16px;margin:12px 0}.photo{max-width:100%;max-height:350px;margin-top:12px;border-radius:12px}
+.status{display:inline-block;padding:7px 12px;border-radius:10px;background:#eee;font-weight:700}
+.ok{color:green}.err{color:#c62828}.small{color:#666}
+</style></head><body>
+<div class="card">
+<h1>🛠️ แจ้งซ่อมสิ่งต่างๆในหอพัก<br>โรงเรียนวิทยาศาสตร์จุฬาภรณราชวิทยาลัย</h1>
+<form id="form">
+<label>โซนหอพัก</label>
+<select id="zone" required>
+<option value="">-- เลือกโซนหอพัก --</option>
+<option>A</option>
+<option>B</option>
+<option>C</option>
+<option>D</option>
+<option>E</option>
+<option>F</option>
+</select>
+<label>หอพัก</label>
+<select id="dorm" required><option value="">-- เลือกหอพัก --</option>
+<option>หอพักสกลนคร</option><option>หอพักบึงกาฬ</option><option>หอพักอุดรธานี</option>
+<option>หอพักหนองคาย</option><option>หอพักขอนแก่น</option></select>
+<label>ห้อง</label><input id="room" value="1" required>
+<label>ปัญหาที่แจ้ง / รายละเอียด</label>
+<textarea id="problem" placeholder="กรอกรายละเอียดปัญหาที่ต้องการแจ้งซ่อม" required></textarea>
+<label>ชื่อผู้แจ้ง</label><input id="reporter" placeholder="ชื่อผู้แจ้ง" required>
+<label>รูปภาพ</label><input id="photo" type="file" accept="image/*">
+<div class="small">รูปจะถูกย่ออัตโนมัติ</div>
+<button id="send" type="submit">ส่งแจ้งซ่อม</button><div id="msg"></div>
+</form></div>
+
+<div class="card"><h2>📋 รายการที่ฉันแจ้ง</h2><div id="myList">กำลังโหลด...</div></div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import {getFirestore,collection,addDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCjW7zpUqWAY9oQyTnydS3P19g-KOvt-Ic",
+  authDomain: "dormfix-24fe0.firebaseapp.com",
+  projectId: "dormfix-24fe0",
+  storageBucket: "dormfix-24fe0.firebasestorage.app",
+  messagingSenderId: "1048588260040",
+  appId: "1:1048588260040:web:cf5dddf21c1cd81bfecbfd",
+  measurementId: "G-XCMMLSN04V"
+};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+let uid=null;
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+async function imageData(file){
+ if(!file)return "";
+ if(!file.type.startsWith("image/"))throw Error("กรุณาเลือกไฟล์รูปภาพ");
+ const b=await createImageBitmap(file),s=Math.min(1,1000/Math.max(b.width,b.height));
+ const c=document.createElement("canvas");c.width=Math.round(b.width*s);c.height=Math.round(b.height*s);
+ c.getContext("2d").drawImage(b,0,0,c.width,c.height);
+ let q=.72,d=c.toDataURL("image/jpeg",q);
+ while(d.length>800000&&q>.4){q-=.07;d=c.toDataURL("image/jpeg",q)}
+ if(d.length>800000)throw Error("รูปใหญ่เกินไป กรุณาเลือกรูปที่เล็กลง");
+ return d;
+}
+document.getElementById("form").addEventListener("submit",async e=>{
+ e.preventDefault(); if(!uid) return;
+ const send=document.getElementById("send"),msg=document.getElementById("msg");
+ send.disabled=true;send.textContent="กำลังส่ง...";
+ try{
+  const problem=document.getElementById("problem").value.trim(), reporter=document.getElementById("reporter").value.trim();
+  await addDoc(collection(db,"repairs"),{
+   userId:uid, zone:document.getElementById("zone").value,
+   dorm:document.getElementById("dorm").value, room:document.getElementById("room").value.trim(),
+   problem:problem,description:problem,reporter:reporter,reporterName:reporter,
+   photoData:await imageData(document.getElementById("photo").files[0]),
+   status:"รอดำเนินการ",createdAt:serverTimestamp()
+  });
+  e.target.reset();document.getElementById("room").value="1";msg.className="ok";msg.textContent="ส่งแจ้งซ่อมเรียบร้อยแล้ว";
+ }catch(x){msg.className="err";msg.textContent="ส่งไม่สำเร็จ: "+x.message}
+ finally{send.disabled=false;send.textContent="ส่งแจ้งซ่อม"}
+});
+onAuthStateChanged(auth,u=>{
+ if(!u)return;uid=u.uid;
+ const q=query(collection(db,"repairs"),where("userId","==",uid));
+ onSnapshot(q,s=>{
+  const a=[];s.forEach(d=>a.push(d.data()));a.sort((x,y)=>(y.createdAt?.seconds||0)-(x.createdAt?.seconds||0));
+  const box=document.getElementById("myList");box.innerHTML=a.length?"":"<p>ยังไม่มีรายการที่คุณแจ้ง</p>";
+  a.forEach(d=>{
+   const item=document.createElement("div");item.className="item";
+   item.innerHTML="<b>โซนหอพัก:</b> "+esc(d.zone||"-")+"<br><b>หอพัก:</b> "+esc(d.dorm||"-")+"<br><b>ห้อง:</b> "+esc(d.room||"-")+
+   "<br><br><b>ปัญหาที่แจ้ง / รายละเอียด:</b><br>"+esc(d.problem||d.description||"-")+
+   "<br><br><b>ชื่อผู้แจ้ง:</b> "+esc(d.reporter||d.reporterName||"-")+
+   "<br><b>สถานะ:</b> <span class='status'>"+esc(d.status||"รอดำเนินการ")+"</span>";
+   if(d.photoData){const im=document.createElement("img");im.className="photo";im.src=d.photoData;item.appendChild(im)}
+   box.appendChild(item);
+  });
+ },e=>document.getElementById("myList").innerHTML="<p class='err'>อ่านรายการไม่ได้: "+esc(e.message)+"</p>");
+});
+signInAnonymously(auth);
+</script></body></html>
