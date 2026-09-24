@@ -1,0 +1,26 @@
+<!doctype html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DormFix - แจ้งซ่อม</title>
+<style>body{font-family:Arial,"Noto Sans Thai",sans-serif;background:#f4f7fb;margin:0}.box{max-width:650px;margin:25px auto;padding:22px;background:white;border-radius:18px;box-shadow:0 5px 25px #0001}label{display:block;font-weight:bold;margin:12px 0 5px}input,select,textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #ccc;border-radius:9px;font:inherit}textarea{min-height:100px}button{width:100%;margin-top:16px;padding:12px;border:0;border-radius:9px;background:#1769e0;color:white;font-weight:bold;font-size:16px}.ok{display:none;margin-top:12px;padding:10px;background:#e9f9ef;color:#087443;border-radius:8px}.err{display:none;margin-top:12px;padding:10px;background:#fff0f0;color:#b42318;border-radius:8px}</style></head>
+<body><div class="box"><h1>🛠️ แจ้งซ่อมสิ่งต่างๆในหอพัก</h1><p>โรงเรียนวิทยาศาสตร์จุฬาภรณราชวิทยาลัย</p>
+<form id="f">
+<label>ชื่อผู้แจ้ง</label><input id="name" required>
+<label>หอพัก</label><select id="dorm" required><option value="">-- เลือก --</option><option>หอพักสกลนคร</option><option>หอพักบึงกาฬ</option><option>หอพักอุดรธานี</option><option>หอพักหนองคาย</option><option>หอพักขอนแก่น</option></select>
+<label>โซน/ชั้น</label><input id="zone" required><label>ห้อง</label><input id="room" required placeholder="เช่น 1">
+<label>ประเภท</label><select id="type" required><option value="">-- เลือก --</option><option>ไฟฟ้า</option><option>ประปา</option><option>ห้องน้ำ</option><option>ประตู/หน้าต่าง</option><option>เตียง/โต๊ะ</option><option>อินเทอร์เน็ต</option><option>อื่นๆ</option></select>
+<label>รายละเอียด</label><textarea id="detail" required></textarea><button id="btn">ส่งแจ้งซ่อม</button></form><div id="ok" class="ok"></div><div id="err" class="err"></div></div>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import{getAuth,signInAnonymously}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getFirestore,collection,addDoc,serverTimestamp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCjW7zpUqWAY9oQyTnydS3P19g-KOvt-Ic",
+  authDomain: "dormfix-24fe0.firebaseapp.com",
+  projectId: "dormfix-24fe0",
+  storageBucket: "dormfix-24fe0.firebasestorage.app",
+  messagingSenderId: "1048588260040",
+  appId: "1:1048588260040:web:cf5dddf21c1cd81bfecbfd",
+  measurementId: "G-XCMMLSN04V"
+};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),f=document.getElementById("f");
+try{await signInAnonymously(auth)}catch(e){document.getElementById("err").style.display="block";document.getElementById("err").textContent="เชื่อมต่อไม่ได้: กรุณาเปิด Anonymous Authentication ใน Firebase"}
+f.onsubmit=async e=>{e.preventDefault();let b=document.getElementById("btn");b.disabled=true;b.textContent="กำลังส่ง...";
+try{let r=await addDoc(collection(db,"repairs"),{name:name.value.trim(),dorm:dorm.value,zone:zone.value.trim(),room:room.value.trim(),type:type.value,detail:detail.value.trim(),status:"รอดำเนินการ",createdAt:serverTimestamp(),createdBy:auth.currentUser.uid});f.reset();ok.style.display="block";ok.textContent="ส่งสำเร็จ เลขที่รายการ: "+r.id}catch(e){err.style.display="block";err.textContent="ส่งไม่สำเร็จ: "+e.message}b.disabled=false;b.textContent="ส่งแจ้งซ่อม"};</script></body></html>
