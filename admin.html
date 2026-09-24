@@ -1,0 +1,24 @@
+<!doctype html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DormFix - ผู้ดูแลหอพัก</title>
+<style>body{font-family:Arial,"Noto Sans Thai",sans-serif;background:#f4f7fb;margin:0}.box{max-width:900px;margin:25px auto;padding:20px;background:white;border-radius:18px;box-shadow:0 5px 25px #0001}.hide{display:none}input,select{width:100%;box-sizing:border-box;padding:11px;margin:5px 0 10px;border:1px solid #ccc;border-radius:8px}button{padding:10px 14px;border:0;border-radius:8px;background:#1769e0;color:white;font-weight:bold;margin:4px}.item{border:1px solid #ddd;border-radius:12px;padding:14px;margin:12px 0}.err{color:#b42318}.qr{text-align:center}.qr img{max-width:220px}.photo{display:block;max-width:100%;max-height:320px;margin:8px 0;border-radius:10px;border:1px solid #ddd}</style></head>
+<body><div class="box" id="login"><h1>🔐 ผู้ดูแลหอพัก</h1><input id="email" type="email" placeholder="อีเมล"><input id="pass" type="password" placeholder="รหัสผ่าน"><button id="loginBtn">เข้าสู่ระบบ</button><p id="loginErr" class="err"></p></div>
+<div class="box hide" id="app"><h1>🛠️ ระบบผู้ดูแลหอพัก</h1><button id="refresh">รีเฟรช</button><button id="logout">ออกจากระบบ</button><div class="qr"><h2>📱 QR สำหรับแจ้งซ่อม</h2><img id="qr"><p id="url"></p></div><h2>รายการแจ้งซ่อม</h2><div id="list">กำลังโหลด...</div></div>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getFirestore,collection,getDocs,query,orderBy,doc,updateDoc,deleteDoc}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCjW7zpUqWAY9oQyTnydS3P19g-KOvt-Ic",
+  authDomain: "dormfix-24fe0.firebaseapp.com",
+  projectId: "dormfix-24fe0",
+  storageBucket: "dormfix-24fe0.firebasestorage.app",
+  messagingSenderId: "1048588260040",
+  appId: "1:1048588260040:web:cf5dddf21c1cd81bfecbfd",
+  measurementId: "G-XCMMLSN04V"
+};
+const firebaseApp=initializeApp(firebaseConfig),auth=getAuth(firebaseApp),db=getFirestore(firebaseApp);const loginBox=document.getElementById("login"),appBox=document.getElementById("app"),listEl=document.getElementById("list"),qrEl=document.getElementById("qr"),urlEl=document.getElementById("url"),loginErrEl=document.getElementById("loginErr");
+const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"}[c]));
+document.getElementById("loginBtn").onclick=async()=>{try{await signInWithEmailAndPassword(auth,document.getElementById("email").value.trim(),document.getElementById("pass").value);loginErrEl.textContent=""}catch(e){loginErrEl.textContent="เข้าสู่ระบบไม่สำเร็จ: "+e.message}};
+document.getElementById("logout").onclick=()=>signOut(auth);document.getElementById("refresh").onclick=load;
+onAuthStateChanged(auth,u=>{if(u&&!u.isAnonymous){loginBox.classList.add("hide");appBox.classList.remove("hide");const u2=new URL("./index.html",location.href).href;urlEl.textContent=u2;qrEl.src="https://quickchart.io/qr?size=220&text="+encodeURIComponent(u2);load()}else{loginBox.classList.remove("hide");appBox.classList.add("hide")}});
+async function load(){listEl.textContent="กำลังโหลด...";try{const s=await getDocs(query(collection(db,"repairs"),orderBy("createdAt","desc")));if(s.empty){listEl.textContent="ยังไม่มีรายการ";return}listEl.innerHTML=s.docs.map(d=>{const r=d.data();const photo=r.photoData?'<img class="photo" src="'+esc(r.photoData)+'" alt="รูปแจ้งซ่อม">':'';return '<div class="item"><b>'+esc(r.type)+' — ห้อง '+esc(r.room)+'</b><br>'+esc(r.dorm)+' | '+esc(r.zone)+' | ผู้แจ้ง: '+esc(r.name)+'<p>'+esc(r.detail)+'</p>'+photo+'<select data-s="'+d.id+'"><option '+(r.status==="รอดำเนินการ"?"selected":"")+'>รอดำเนินการ</option><option '+(r.status==="กำลังดำเนินการ"?"selected":"")+'>กำลังดำเนินการ</option><option '+(r.status==="เสร็จแล้ว"?"selected":"")+'>เสร็จแล้ว</option></select><button data-u="'+d.id+'">บันทึกสถานะ</button><button data-d="'+d.id+'">ลบ</button></div>'}).join("");document.querySelectorAll("[data-u]").forEach(b=>b.onclick=async()=>{await updateDoc(doc(db,"repairs",b.dataset.u),{status:document.querySelector('[data-s="'+b.dataset.u+'"]').value});load()});document.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{if(confirm("ลบรายการนี้?")){await deleteDoc(doc(db,"repairs",b.dataset.d));load()}})}catch(e){listEl.innerHTML='<p class="err">โหลดไม่ได้: '+esc(e.message)+'</p>'}}
+</script></body></html>
