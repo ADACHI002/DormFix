@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>DormFix - แจ้งซ่อม</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Sans Thai",sans-serif;background:#f3f6fb;color:#172033}
+header{background:linear-gradient(135deg,#2563eb,#4f46e5);color:white;padding:24px;text-align:center}
+header h1{margin:0 0 6px;font-size:30px}header p{margin:0;opacity:.9}
+.container{max-width:1100px;margin:24px auto;padding:0 16px}
+.card{background:white;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 5px 20px #1e293b12}
+h2{margin-top:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #ccd5e2;border-radius:9px;font-size:15px}
+textarea{min-height:100px;resize:vertical}.full{grid-column:1/-1}
+.btn{border:0;border-radius:10px;padding:12px 18px;background:#2563eb;color:white;font-weight:bold;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{padding:18px;border-radius:14px;background:#f8fafc;text-align:center}.stat b{font-size:27px;display:block;margin-top:4px}
+table{width:100%;border-collapse:collapse}th,td{padding:12px 9px;border-bottom:1px solid #e7ebf1;text-align:left;vertical-align:top}th{background:#f8fafc}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:bold}.wait{background:#fee2e2;color:#b91c1c}.doing{background:#fef3c7;color:#92400e}.done{background:#dcfce7;color:#166534}
+.empty{text-align:center;color:#718096;padding:30px}.danger{background:#dc2626}.small{font-size:12px;color:#64748b}
+.qr-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.qr-box{padding:12px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;text-align:center}.qr-box img{width:220px;height:220px;display:block;margin:auto}.copy-box{flex:1;min-width:240px}
+@media(max-width:700px){.grid,.stats{grid-template-columns:1fr}.full{grid-column:auto}table{font-size:13px;display:block;overflow:auto}}
+</style></head><body>
+<header><h1>🛠️ DormFix</h1><p>แจ้งซ่อมสิ่งต่างๆในหอพัก โรงเรียนวิทยาศาสตร์จุฬาภรณราชวิทยาลัย</p></header>
+<div class="container"><div class="card">
+<h2>📝 แจ้งปัญหา/แจ้งซ่อม</h2>
+<form id="repairForm"><div class="grid">
+<div><label>ชื่อผู้แจ้ง</label><input id="name" required placeholder="เช่น ณัฐวัศห์"></div>
+<div><label>หอพัก</label><select id="dorm" required>
+<option value="">-- เลือกหอพัก --</option>
+<option>หอพักสกลนคร</option><option>หอพักบึงกาฬ</option><option>หอพักอุดรธานี</option><option>หอพักหนองคาย</option><option>หอพักขอนแก่น</option>
+</select></div>
+<div><label>โซนที่พัก</label><input id="zone" required placeholder="เช่น โซน A"></div>
+<div><label>ห้อง</label><input id="room" required placeholder="เช่น 1"></div>
+<div><label>ประเภทปัญหา</label><select id="type" required>
+<option value="">-- เลือกประเภท --</option><option>💡 ไฟฟ้า</option><option>🌀 พัดลม</option><option>🚿 น้ำประปา</option><option>🚪 ประตู/หน้าต่าง</option><option>🔧 อื่น ๆ</option>
+</select></div>
+<div class="full"><label>รายละเอียดปัญหา</label><textarea id="detail" required placeholder="อธิบายอาการหรือสิ่งที่ชำรุด..."></textarea></div>
+<div class="full"><label>📷 รูปภาพปัญหา</label><input id="photo" type="file" accept="image/*"></div>
+</div><button class="btn" type="submit">📨 ส่งแจ้งซ่อม</button></form></div>
+<div class="card"><h2>🔎 ตรวจสอบรายการแจ้งซ่อม</h2><div id="studentList"></div></div></div><script>
+let repairs=JSON.parse(localStorage.getItem("dormfix_repairs")||"[]");
+function save(){localStorage.setItem("dormfix_repairs",JSON.stringify(repairs));render();}
+function badge(s){let c=s==="รอรับเรื่อง"?"wait":s==="กำลังซ่อม"?"doing":"done";return `<span class="badge ${c}">${s}</span>`;}
+document.getElementById("repairForm").addEventListener("submit",e=>{
+ e.preventDefault(); const f=document.getElementById("photo").files[0];
+ const create=photo=>{repairs.unshift({id:Date.now(),name:name.value.trim(),dorm:dorm.value,zone:zone.value.trim(),room:room.value.trim(),type:type.value,detail:detail.value.trim(),photo:photo||"",date:new Date().toLocaleString("th-TH"),status:"รอรับเรื่อง"});save();e.target.reset();alert("ส่งรายการแจ้งซ่อมเรียบร้อยแล้ว");};
+ if(f){let r=new FileReader();r.onload=()=>create(r.result);r.readAsDataURL(f);}else create("");
+});
+function render(){let el=document.getElementById("studentList");if(!repairs.length){el.innerHTML='<div class="empty">ยังไม่มีรายการแจ้งซ่อม</div>';return;}el.innerHTML=repairs.map(x=>`<div style="padding:14px 0;border-bottom:1px solid #e7ebf1"><b>${x.type} — ${x.dorm} | โซน ${x.zone} | ห้อง ${x.room}</b> ${badge(x.status)}<div>${x.detail}</div>${x.photo?`<div style="margin-top:8px"><img src="${x.photo}" style="max-width:220px;max-height:160px;border-radius:10px" alt="รูปปัญหา"></div>`:""}<div class="small">ผู้แจ้ง: ${x.name} | ${x.date}</div></div>`).join("");}
+render();
+setInterval(render,2000);
+</script></body></html>
